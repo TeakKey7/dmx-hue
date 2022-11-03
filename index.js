@@ -20,9 +20,6 @@ ${chalk.bold('Options:')}
   -t, --transition Set transition time in ms              [default: 100]
                    Can also be set to 'channel' to enable a dedicated DMX
                    channel on which 1 step equals 100ms.
-  -c, --colorloop  Enable colorloop feature
-                   When enabled, setting all RGB channels of a light to 1 will
-                   enable colorloop mode.
   -n, --no-limit   Disable safety rate limiting
                    Warning: when this option is enabled, make sure to not send
                    more than <number_of_lights>/10 updates per second, or you
@@ -40,7 +37,7 @@ ${chalk.bold('Commands:')}
 class DmxHue {
   constructor(args) {
     this._args = minimist(args, {
-      boolean: ['list', 'force', 'help', 'version', 'colorloop', 'no-limit'],
+      boolean: ['list', 'force', 'help', 'version', 'no-limit'],
       string: ['ip', 'host', 'transition'],
       number: ['address', 'universe'],
       alias: {
@@ -49,7 +46,6 @@ class DmxHue {
         h: 'host',
         a: 'address',
         t: 'transition',
-        c: 'colorloop',
         n: 'no-limit',
         u: 'universe'
       }
@@ -79,12 +75,12 @@ class DmxHue {
         options.lights = ordered.concat(remaining);
         options.transitionChannel = options.transition === 'channel';
         options.colors = {};
-        const dmxChannelCount = (3 * options.lights.length) + (options.transitionChannel ? 1 : 0);
+        const dmxChannelCount = (5 * options.lights.length) + (options.transitionChannel ? 1 : 0);
         const extraDmxAddress = options.address + dmxChannelCount - 512;
 
         if (extraDmxAddress >= 0) {
           console.warn(chalk.yellow('Warning: not enough DMX channels, some lights will be unavailable'));
-          const lightsToRemove = Math.ceil(extraDmxAddress / 3.0);
+          const lightsToRemove = Math.ceil(extraDmxAddress / 5.0);
           options.lights = options.lights.slice(0, -lightsToRemove);
         }
 
@@ -105,7 +101,7 @@ class DmxHue {
         }
         options.lights.forEach(light => {
           console.log(` ${chalk.cyan(`${currentAddress}:`)} ${light.name} ${chalk.grey(`(Hue ID: ${light.id})`)}`);
-          currentAddress += 3;
+          currentAddress += 2;
         });
         console.log('\nArtNet node started (CTRL+C to quit)');
       });
@@ -128,7 +124,7 @@ class DmxHue {
       address++;
     }
 
-    const dmx = dmxData.slice(address, address + (3 * options.lights.length));
+    const dmx = dmxData.slice(address, address + (2 * options.lights.length));
     let j = 0;
     const length = options.lights.length;
     let indices = Array.from({length}, (_, i) => i);
@@ -137,16 +133,16 @@ class DmxHue {
     let i;
     for (i of indices) {
       const lightId = options.lights[i].id;
-      j = i * 3;
-      const color = dmx.slice(j, j + 3);
+      j = i * 2;
+      const color = dmx.slice(j, j + 2);
       const previous = options.colors[lightId];
 
       // Update light only if color changed
-      if (!previous || color[0] !== previous[0] || color[1] !== previous[1] || color[2] !== previous[2]) {
+      if (!previous || color[0] !== previous[0] || color[1] !== previous[1]) {
         // Rate limit Hue API to 0,1s between calls
         const now = new Date().getTime();
         if (options.noLimit || now - this._lastUpdate >= 100) {
-          const state = this._hue.createLightState(color[0], color[1], color[2], options);
+          const state = this._hue.createLightState(color[0], color[1], options);
           this._lastUpdate = now;
           this._hue.setLight(lightId, state);
           options.colors[lightId] = color;
