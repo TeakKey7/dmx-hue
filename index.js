@@ -181,12 +181,6 @@ class DmxHue {
             },
             {
               type: 'confirm',
-              name: 'colorloop',
-              message: 'Enable colorloop feature',
-              default: Util.config.get('colorloop') || false
-            },
-            {
-              type: 'confirm',
               name: 'transitionChannel',
               message: 'Use DMX channel for transition time',
               default: transition === 'channel'
